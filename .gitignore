@@ -1,0 +1,107 @@
+# ============================================================
+# InstaDM for Windows - .gitignore
+# Ignore rules exist BEFORE any local/private artifact is created.
+# NEVER commit: credentials, cookies, sessions, WebView user data,
+# captures, screenshots, logs, dumps, signing material, personal paths.
+# ============================================================
+
+# --- Local-only configuration (contains personal absolute paths) ---
+.instadm-local.env
+*.local.env
+
+# --- Build output ---
+bin/
+obj/
+out/
+artifacts/
+publish/
+*.binlog
+BuildOutput/
+AppPackages/
+BundleArtifacts/
+
+# --- .NET / NuGet ---
+*.user
+*.suo
+*.nupkg
+*.snupkg
+project.lock.json
+.vs/
+.vscode/
+*.userprefs
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# --- Test results (may contain runtime data) ---
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+.coverage/
+
+# --- WebView2 / embedded browser user data (SENSITIVE: cookies, session) ---
+*.WebView2/
+EBWebView/
+WebView2Data/
+UserDataFolder/
+webview-user-data/
+LocalAppData/
+
+# --- Runtime local app data, logs, diagnostics (SENSITIVE) ---
+logs/
+*.log
+*.etl
+*.dmp
+*.mdmp
+*.hdmp
+crash-dumps/
+diagnostics/
+
+# --- Network captures / traces (SENSITIVE: never commit) ---
+*.pcap
+*.pcapng
+*.cap
+*.har
+*.saz
+*.netlog
+traces/
+captures/
+
+# --- Screenshots and recordings (SENSITIVE: may contain account data) ---
+screenshots/
+*.mov
+*.mp4
+recordings/
+
+# --- Signing material (NEVER commit) ---
+*.pfx
+*.p12
+*.snk
+*.cer
+*.pem
+*.key
+signing/
+
+# --- Secrets and env files ---
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- IDE user state ---
+.idea/
+*.swp
+*.swo
+.ionide/
+
+# --- Local dotnet install (host tooling, not project source) ---
+.dotnet/
+.dotnet-tools/

@@ -1,0 +1,67 @@
+# ============================================================
+# InstaDM for Windows - .cursorignore
+# Reduces model/indexing access to runtime user data and sensitive
+# artifacts. Conservative: does NOT hide source or policy files that
+# agents must review. NOTE: this does not stop terminal tools from
+# reading a path — never print ignored sensitive files via shell.
+# ============================================================
+
+# Local-only configuration with personal absolute paths.
+# Agents: resolve paths from it via scripts, never print or commit it.
+.instadm-local.env
+*.local.env
+
+# Embedded browser user data (cookies, sessions, site data)
+*.WebView2/
+EBWebView/
+WebView2Data/
+UserDataFolder/
+webview-user-data/
+
+# Runtime logs, dumps, diagnostics
+logs/
+*.log
+*.etl
+*.dmp
+*.mdmp
+*.hdmp
+crash-dumps/
+diagnostics/
+
+# Network captures and traces
+*.pcap
+*.pcapng
+*.cap
+*.har
+*.saz
+*.netlog
+traces/
+captures/
+
+# Screenshots / recordings
+screenshots/
+recordings/
+*.mov
+*.mp4
+
+# Signing material and secrets
+*.pfx
+*.p12
+*.snk
+*.pem
+*.key
+signing/
+secrets/
+.env
+.env.*
+
+# Test result attachments (may contain runtime data)
+TestResults/
+*.trx
+
+# Build noise (keeps index focused on source)
+bin/
+obj/
+artifacts/
+publish/
+.dotnet/

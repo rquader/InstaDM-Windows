@@ -1,0 +1,45 @@
+---
+description: Mandatory InstaDM Windows privacy, continuity, and validation rules
+alwaysApply: true
+---
+
+# InstaDM Windows — Mandatory Rules
+
+Before any work: read `AGENTS.md`, `docs/HANDOFF.md`, `docs/IMPLEMENTATION_PLAN.md`,
+`docs/DECISIONS.md`, `docs/PRIVACY_THREAT_MODEL.md`, and check `git status`.
+Repository state wins over stale handoff prose.
+
+## Privacy invariant (absolute)
+
+- App-owned data never leaves the local machine except first-party
+  Instagram/Meta traffic from the embedded official web client.
+- Never log/store/transmit credentials, 2FA codes, cookie values, tokens,
+  message content, usernames, DOM text, screenshots, or full sensitive URLs.
+- Cookie checks are existence-only; never read the value.
+- No analytics, telemetry, remote logging, crash upload, backend, proxy,
+  cloud sync, remote config, push backend, or auto-updater — ever.
+- Release builds: DevTools and remote debugging disabled.
+- Never print or commit `.instadm-local.env`, WebView user data, captures,
+  logs, dumps, screenshots, or signing material.
+- Tests and CI use synthetic fixtures only; no live Instagram account.
+
+## Reference material
+
+- The macOS source repo and all Obsidian notes outside `Windows App/` are
+  read-only. Only the `Windows App/` subtree may be written, with sanitized
+  content only. Resolve paths from ignored `.instadm-local.env`; never commit
+  or print personal absolute paths.
+
+## Continuity
+
+- Update `docs/HANDOFF.md` after every 3–5 meaningful actions, before long
+  operations, after decisions/commits, and before ending a session. Mirror the
+  identical body to `Windows App/HANDOFF.md` (repo copy first), verify equality.
+- Keep the repo buildable at each commit. Run `dotnet test` for
+  `InstaDM.Core.Tests` and the privacy scanners in `tools/` before committing.
+- Windows-only projects build in the `windows-latest` CI workflow when the host
+  is macOS; never claim a Windows build succeeded without evidence.
+
+Rules are steering, not enforcement: the tests, scanners in `tools/`, build
+configuration, and `docs/RELEASE_CHECKLIST.md` gates are the real guarantees.
+Keep them intact and extend them with new code.
