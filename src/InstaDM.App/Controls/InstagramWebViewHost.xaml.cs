@@ -22,7 +22,7 @@ namespace InstaDM.App.Controls;
 /// </summary>
 public sealed partial class InstagramWebViewHost : UserControl
 {
-    private readonly NavigationPolicy _policy = new();
+    private readonly NavigationPolicy _policy;
     private readonly NavigationRecoveryCoordinator _recovery;
     private readonly WebViewHostConfiguration _configuration;
     private readonly AuthenticationStateMachine _auth = new();
@@ -36,6 +36,7 @@ public sealed partial class InstagramWebViewHost : UserControl
     public InstagramWebViewHost()
     {
         InitializeComponent();
+        _policy = new NavigationPolicy(App.Current.CreatePolicyOptions());
         _recovery = new NavigationRecoveryCoordinator(_policy);
 
         _configuration = WebViewHostConfiguration.Create(
@@ -98,12 +99,20 @@ public sealed partial class InstagramWebViewHost : UserControl
         core.Profile.PreferredTrackingPreventionLevel =
             CoreWebView2TrackingPreventionLevel.Balanced;
 
-        // 3. Document-start guard, from the single C# policy source. Must be
-        //    registered before any navigation so it beats Instagram's bundles.
+        // 3. Document-start guard + cosmetic shell. Guard must precede
+        //    Instagram's bundles; CSS is presentation-only (not containment).
         var guardTemplate = await File.ReadAllTextAsync(
             Path.Combine(AppContext.BaseDirectory, "Web", "containment-guard.js"));
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
             PolicyScriptBuilder.InjectIntoScript(guardTemplate, _policy));
+
+        var cosmeticCss = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Web", "cosmetic-shell.css"));
+        var cosmeticJs =
+            "(function(){var s=document.createElement('style');s.textContent=" +
+            System.Text.Json.JsonSerializer.Serialize(cosmeticCss) +
+            ";document.documentElement.appendChild(s);})();";
+        await core.AddScriptToExecuteOnDocumentCreatedAsync(cosmeticJs);
 
         // 4. Event wiring — each handler enforces one named invariant.
         core.NavigationStarting += OnNavigationStarting;
@@ -119,6 +128,7 @@ public sealed partial class InstagramWebViewHost : UserControl
         // the only inputs; the pure state machine decides everything.
         _sessionWatcher = new AuthSessionWatcher(
             new WebViewSessionCookieProbe(core, DispatcherQueue));
+        App.Current.Lifecycle.Own(_sessionWatcher);
         Unloaded += OnUnloaded;
 
         // 5. First navigation, only now. Assume absent until the probe
@@ -348,6 +358,13 @@ public sealed partial class InstagramWebViewHost : UserControl
             GuardReportedSurface.DirectShell => InstagramSurface.DirectShell,
             _ => InstagramSurface.UnknownInstagram,
         };
+
+    /// <summary>Optional Follow Requests surface. Only called when the
+    /// setting is enabled; native policy still gates the path.</summary>
+    public void NavigateToFollowRequests()
+    {
+        WebView.CoreWebView2?.Navigate(NavigationPolicy.FollowRequestsUrl);
+    }
 
     /// <summary>Clears all Instagram data in the dedicated profile: cookies,
     /// cache, storage, everything. Used by the sign-out flow (M9) and never

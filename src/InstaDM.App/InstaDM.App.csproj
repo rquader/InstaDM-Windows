@@ -34,6 +34,7 @@
     <!-- Guard template read at runtime and spliced with the C# policy
          payload before document-start registration. -->
     <Content Include="Web/containment-guard.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Web/cosmetic-shell.css" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,6 @@
+using InstaDM.Core.Lifecycle;
+using InstaDM.Core.Navigation;
+using InstaDM.Core.Settings;
 using Microsoft.UI.Xaml;
 
 namespace InstaDM.App;
@@ -11,14 +14,38 @@ public partial class App : Application
 {
     private MainWindow? _window;
 
+    public static new App Current => (App)Application.Current;
+
+    public LocalSettingsStore SettingsStore { get; }
+    public AppSettings Settings { get; private set; }
+    public AppLifecycleCoordinator Lifecycle { get; } = new();
+
     public App()
     {
         InitializeComponent();
+
+        var dataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "InstaDM");
+        SettingsStore = new LocalSettingsStore(dataDir);
+        Settings = SettingsStore.Load();
+    }
+
+    public PolicyOptions CreatePolicyOptions() => new()
+    {
+        FollowRequestsEnabled = Settings.FollowRequestsEnabled,
+        SharedPostsEnabled = false, // unavailable in first release
+    };
+
+    public void ReplaceSettings(AppSettings settings)
+    {
+        Settings = settings;
+        SettingsStore.Save(settings);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
+        _window = new MainWindow(SettingsStore, Lifecycle, Settings);
         _window.Activate();
     }
 }

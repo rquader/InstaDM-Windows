@@ -199,17 +199,35 @@ fallback after loop cap). In-page Escape/chrome-dismiss deferred until live
 Windows testing shows stuck overlays (SOURCE_BEHAVIOR B7).
 Commit: `feat: contain Instagram escapes without breaking chat history`
 
-## M9 — Native shell, settings, and optional surfaces — `NOT STARTED`
+## M9 — Native shell, settings, and optional surfaces — `DONE`
 
-Messages-first window; native Settings; system/light/dark; Sage accent; local
-settings store; Requests surface off by default; accessibility.
-Commit: `feat: add focused native Windows shell and local settings` — FALLBACK-SAFE: partial (view polish yes)
+| Task | Description | Status |
+| --- | --- | --- |
+| M9.1 | `AppSettings` + `LocalSettingsStore` (local JSON, atomic write) | DONE |
+| M9.2 | `AppLifecycleCoordinator` (own/dispose on last-window close) | DONE |
+| M9.3 | MainWindow NavigationView: Messages / optional Requests / Settings | DONE |
+| M9.4 | SettingsView: appearance, notifications, poll, Follow Requests, clear-data | DONE |
+| M9.5 | Cosmetic shell CSS (presentation only) | DONE |
+| M9.6 | Sage theme dictionaries (already in App.xaml) + System/Light/Dark chrome | DONE |
 
-## M10 — Privacy-first notifications — `NOT STARTED`
+Status notes: Follow Requests applies on next launch (document-start policy is
+immutable per WebView lifetime). Shared Posts remain unavailable. Window close
+calls Lifecycle.Shutdown + Application.Exit (no tray).
+Windows interactive UI: NOT RUN - WINDOWS ENVIRONMENT REQUIRED.
+Commit: `feat: add focused native Windows shell and local settings`
 
-Title parser; baseline/increase state machine; poll scheduling/cancellation;
-generic toasts; foreground suppression; taskbar indicator; permission-denied
-fallback. Commit: `feat: add local generic unread notifications` — FALLBACK-SAFE: partial (parser test cases yes)
+## M10 — Privacy-first notifications — `IN PROGRESS`
+
+| Task | Description | Status | FALLBACK-SAFE |
+| --- | --- | --- | --- |
+| M10.1 | `UnreadTitleParser` (comma groups; L9 nil-not-zero) | DONE | yes |
+| M10.2 | `UnreadStateMachine` (baseline / increase / suppress) | DONE | yes |
+| M10.3 | `UnreadPollScheduler` (cancellable interval loop) | DONE | yes |
+| M10.4 | WinUI toast + taskbar indicator host wiring | NOT STARTED | no |
+| M10.5 | Foreground/Messages-visible suppression wiring | NOT STARTED | no |
+
+Windows toast/badge: NOT RUN - WINDOWS ENVIRONMENT REQUIRED.
+Commit (core): `feat: add local generic unread notification core`
 
 ## M11 — Network/privacy audit and hardening — `NOT STARTED`
 

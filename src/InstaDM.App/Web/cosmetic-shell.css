@@ -1,0 +1,13 @@
+/* Cosmetic shell only — NOT a security boundary.
+   Hides Instagram left-rail chrome that tempts feed/explore/reels.
+   Prefer durable href patterns; expect DOM drift. Never restyle message content. */
+
+nav a[href="/"],
+nav a[href="/explore/"],
+nav a[href="/reels/"],
+nav a[href*="/stories"],
+a[href="/"][role="link"],
+a[href="/explore/"][role="link"],
+a[href="/reels/"][role="link"] {
+  display: none !important;
+}
