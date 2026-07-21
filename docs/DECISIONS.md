@@ -37,5 +37,41 @@ privacy impact, status.
 
 ---
 
+## ADR-003 — Source evidence hierarchy and local/public reconciliation
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** The prompt requires comparing the local macOS source with the
+  public GitHub repository and resolving differences.
+- **Decision:** Verified the local source working tree is clean at tag
+  `v1.0.1` (HEAD `009252f`) and identical to `origin/main` of
+  https://github.com/rquader/InstaDM — **no divergence exists**. Evidence
+  hierarchy used for `docs/SOURCE_BEHAVIOR.md`: notes = product intent,
+  local code at `v1.0.1` = implemented behavior, public README/CHANGELOG/git
+  history = supporting evidence.
+- **Privacy impact:** none; only sanitized distillations recorded.
+
+---
+
+## ADR-004 — Port behavior, not defects: known macOS bugs fixed by design
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** A read-only audit of the macOS source (2026-06-04, recorded in
+  the reference notes) verified 17 code findings. The Windows port must not
+  faithfully reproduce known defects.
+- **Decision:** The Windows implementation fixes by construction: boundary-
+  anchored matching everywhere including DM paths and the generated JS guard
+  (findings L1/L3); one lowercasing host canonicalizer (M1); popup scheme
+  checks (L2); comma-grouped and malformed title parsing (M2/L9); heal
+  actions gated to explicit link activations, background prefetches dropped
+  silently (H1); guard installs unconditionally with runtime auth stand-down
+  rather than skipping installation (L5 — decide finally in M5 with harness
+  evidence); weak/cancellable timers and disposal (L6/L7); SharedPosts
+  default-disabled at both compile-time and runtime (L11); debug diagnostics
+  log redacted paths/enums, never full thread URLs (L12 nit).
+- **Privacy impact:** positive — several findings are privacy/containment
+  hardening.
+
 (Later ADRs — architecture selection, navigation policy shape, auth state
 machine, notification design — are appended below as they are made.)
