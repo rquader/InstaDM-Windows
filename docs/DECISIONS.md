@@ -73,5 +73,111 @@ privacy impact, status.
 - **Privacy impact:** positive — several findings are privacy/containment
   hardening.
 
-(Later ADRs — architecture selection, navigation policy shape, auth state
-machine, notification design — are appended below as they are made.)
+## ADR-005 — Architecture: C# + WinUI 3 (Windows App SDK stable) + WebView2, with WPF as fallback
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Compared three options on the required axes (native feel,
+  document-start injection, navigation/popup/download/permission interception,
+  local cookie persistence, auth reliability, privacy/diagnostics, telemetry
+  disablement, lifecycle, notifications/taskbar, packaging, testability
+  without a live account, dependency footprint, accessibility/DPI/theme,
+  single-developer + small-model maintainability).
+
+  1. **C# + WinUI 3 + Windows App SDK + WebView2** — modern native chrome
+     (Fluent, Mica, dark/light), first-party toast notification APIs, current
+     stable Windows App SDK is 2.3.x (July 2026; min OS Windows 10 1809);
+     WebView2 supplies every needed hook: explicit
+     `CoreWebView2Environment.CreateWithOptionsAsync` with a dedicated
+     user-data folder, `AddScriptToExecuteOnDocumentCreatedAsync`
+     (document-start, before page scripts), `NavigationStarting` /
+     `FrameNavigationStarting` / `SourceChanged` / `HistoryChanged` /
+     `NewWindowRequested` / `DownloadStarting` / `PermissionRequested` /
+     `ProcessFailed`, `CookieManager` (existence-only checks are expressible),
+     `Profile.ClearBrowsingDataAsync`. All first-party; zero third-party
+     packages needed.
+  2. **C# + WPF + WebView2** — same WebView2 privacy posture and hooks; older
+     but extremely stable tooling; less native-modern feel (no Mica, manual
+     dark-mode title bar work); equal testability. Kept as the documented
+     fallback if WinUI 3 tooling friction (packaging, CI) becomes a real
+     blocker — the swap cost is deliberately kept low because all policy/state
+     logic lives in `InstaDM.Core` and the host layer is thin.
+  3. **Alternative engine (CEF/Chromium-embedded, Tauri/WRY, Electron)** —
+     rejected. Electron: bundles a second browser engine, large third-party
+     surface, contradicts the zero-dependency privacy posture. CEF: huge
+     supply-chain and update burden for one developer; no privacy advantage
+     (Chromium services still need disabling). Tauri/WRY on Windows wraps the
+     same WebView2 runtime with an extra non-first-party layer and a Rust
+     toolchain — added surface, no benefit. Reconsidered only if the WebView2
+     privacy gate (ADR-006/G1–G2) fails.
+
+- **Decision:** WinUI 3 (Windows App SDK, current stable 2.x line) + WebView2,
+  packaged app, .NET current LTS; exact SDK/TFM pinned in M3 from installed
+  tooling per the working rules. `InstaDM.Core` (policy, auth, notifications,
+  recovery state machines) targets plain `net` TFM so it builds and tests on
+  the macOS dev host; only `InstaDM.App` is Windows-targeted.
+- **Fallback plan:** if WinUI 3 blocks (packaging/CI/API defect), move the
+  thin host layer to WPF + WebView2 without touching `InstaDM.Core`. If
+  WebView2 itself fails the privacy gate, do not release; re-evaluate engines
+  with the audit evidence in hand.
+- **Privacy caveats:** carried in ADR-006.
+
+---
+
+## ADR-006 — WebView2 privacy configuration and release gate
+
+- **Date:** 2026-07-22
+- **Status:** Accepted (configuration plan); runtime verification pending (M11)
+- **Context:** WebView2 is a Chromium/Edge runtime with Microsoft-connected
+  features. Microsoft's data-privacy documentation states apps do not control
+  *overall* diagnostic data collection (it follows Windows diagnostic-data
+  settings), while specific features are app-controllable. The absolute
+  privacy invariant forbids app-owned processes from contacting non-
+  Instagram/Meta endpoints during normal operation.
+- **Decision — configure all of the following before first navigation:**
+  - **SmartScreen/reputation:** disabled via BOTH
+    `CoreWebView2EnvironmentOptions.AdditionalBrowserArguments =
+    "--disable-features=msSmartScreenProtection"` (environment-level, cannot
+    be re-enabled at runtime) and `Settings.IsReputationCheckingRequired =
+    false` (belt and suspenders). Security tradeoff accepted and documented:
+    the app navigates only to Instagram's own site by policy; SmartScreen's
+    protection value here is minimal and its URL-reporting cost violates the
+    invariant.
+  - **Crash reporting:** `CoreWebView2EnvironmentOptions.
+    IsCustomCrashReportingEnabled = true` — per Microsoft docs this stops
+    Windows sending WebView2 crash dumps to Microsoft; dumps stay local in
+    the user-data folder and are documented in the storage inventory.
+  - **Password autosave:** `Settings.IsPasswordAutosaveEnabled = false`.
+  - **General autofill:** `Settings.IsGeneralAutofillEnabled = false`.
+  - **Browser extensions:** `CoreWebView2EnvironmentOptions.
+    AreBrowserExtensionsEnabled = false` (default, set explicitly).
+  - **OS single sign-on:** `CoreWebView2EnvironmentOptions.
+    AllowSingleSignOnUsingOSPrimaryAccount = false` (default, set explicitly).
+  - **Tracking prevention:** keep enabled (privacy-positive, local);
+    level set explicitly; verify it makes no external calls in the audit.
+  - **DevTools / debugging:** `Settings.AreDevToolsEnabled` true only in
+    DEBUG; remote debugging never enabled in Release (no
+    `--remote-debugging-port`; scanner enforces).
+  - **User-data folder:** dedicated `%LOCALAPPDATA%\InstaDM\WebView2` — local,
+    non-roaming, app-exclusive, deleted by clear-data flow where supported.
+  - **Additional Chromium service hardening (verify each in audit):**
+    disable via `AdditionalBrowserArguments` candidates —
+    `--disable-domain-reliability`, `--disable-background-networking`,
+    `--disable-component-update` — exact final set determined empirically in
+    M11 on Windows; flags must not break Instagram function.
+- **Release gate (binding):** the M11 runtime network audit of a Release
+  build must show **no app-owned process contacting any non-Instagram/Meta
+  endpoint** during normal operation. Any remaining Microsoft-bound
+  diagnostics/telemetry from WebView2 processes that cannot be eliminated is
+  a release blocker on this runtime — not a disclosure footnote. The
+  WebView2 Evergreen runtime's own updater (scheduled task/service installed
+  with the runtime, runs independently of the app) is categorized as
+  independent OS activity: documented separately, never fed app data, and
+  never used to excuse app-process egress.
+- **Privacy impact:** this ADR is the concrete implementation of threat-model
+  gates G1/G2.
+
+---
+
+(Later ADRs — navigation policy shape details, auth state machine, and
+notification design — are appended below as they are made.)

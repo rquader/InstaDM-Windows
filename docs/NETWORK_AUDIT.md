@@ -46,9 +46,24 @@ SmartScreen reputation, component update, crash upload, autofill/sync)
 
 ## Runtime configuration under audit
 
-Populated in M6/M11: WebView2 environment options, disabled features
-(SmartScreen, autofill, password autosave, tracking prevention config,
-crash reporting, browser sign-in, DevTools), user-data folder location.
+Planned configuration (ADR-006; implemented in M6, verified in M11):
+
+- Environment: `CreateWithOptionsAsync`, dedicated user-data folder
+  `%LOCALAPPDATA%\InstaDM\WebView2`.
+- `AdditionalBrowserArguments`: `--disable-features=msSmartScreenProtection`
+  plus candidates `--disable-domain-reliability`,
+  `--disable-background-networking`, `--disable-component-update`
+  (final set fixed empirically here).
+- `IsCustomCrashReportingEnabled = true` (no crash upload to Microsoft).
+- `AreBrowserExtensionsEnabled = false`,
+  `AllowSingleSignOnUsingOSPrimaryAccount = false`.
+- Settings before first navigation: `IsReputationCheckingRequired = false`,
+  `IsPasswordAutosaveEnabled = false`, `IsGeneralAutofillEnabled = false`,
+  `AreDevToolsEnabled` = Debug only.
+- Known open question to measure: WebView2 "required diagnostic data"
+  behavior (Microsoft documents it as following Windows diagnostic settings).
+  If app-owned WebView2 processes emit Microsoft-bound telemetry that cannot
+  be eliminated, release on this runtime is blocked (gates G1/G2).
 
 ## Limitations
 
