@@ -5,11 +5,12 @@ name: release
 # macOS InstaDM release flow (tag → CI → zip → gh release create).
 #
 # Trigger:
-#   git tag v0.1.0
-#   git push origin v0.1.0
+#   git tag v1.0.0
+#   git push origin v1.0.0
 #
 # Privacy: publishes only the synthetic build output. Never attaches logs,
-# WebView profiles, captures, or live-account data.
+# WebView profiles, captures, or live-account data. PDB/symbol files are
+# stripped before zipping.
 
 on:
   push:
@@ -57,10 +58,21 @@ jobs:
             -p:Platform=x64 `
             -p:PublishDir="$out/" `
             -p:WindowsPackageType=None `
-            -p:WindowsAppSDKSelfContained=true
+            -p:WindowsAppSDKSelfContained=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
           if (-not (Test-Path (Join-Path $out "InstaDM.exe"))) {
             Write-Error "InstaDM.exe missing from publish output"
             Get-ChildItem -Recurse $out | Select-Object -First 80 FullName
+            exit 1
+          }
+          # Belt-and-suspenders: never ship PDBs (can embed local build paths).
+          Get-ChildItem -Path $out -Filter *.pdb -Recurse -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+          $pdbLeft = @(Get-ChildItem -Path $out -Filter *.pdb -Recurse -ErrorAction SilentlyContinue)
+          if ($pdbLeft.Count -gt 0) {
+            Write-Error "PDB files still present after strip"
+            $pdbLeft | ForEach-Object { $_.FullName }
             exit 1
           }
           Get-ChildItem $out | Select-Object Name, Length
@@ -72,7 +84,10 @@ jobs:
           $zip = Join-Path $env:GITHUB_WORKSPACE "InstaDM-win-x64.zip"
           if (Test-Path $zip) { Remove-Item $zip }
           Compress-Archive -Path (Join-Path $artifacts "InstaDM") -DestinationPath $zip
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $env:GITHUB_WORKSPACE "InstaDM-win-x64.zip.sha256") -Value "$hash  InstaDM-win-x64.zip"
           Get-Item $zip | Format-List Name, Length, FullName
+          Get-Content (Join-Path $env:GITHUB_WORKSPACE "InstaDM-win-x64.zip.sha256")
 
       - name: Create GitHub Release
         env:
@@ -80,19 +95,24 @@ jobs:
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
-          NOTES=$(cat <<'EOF'
+          HASH="$(cut -d' ' -f1 InstaDM-win-x64.zip.sha256)"
+          NOTES=$(cat <<EOF
           Unsigned Windows build (self-contained, unpackaged WinUI + WebView2).
 
-          **Install:** unzip `InstaDM-win-x64.zip`, run `InstaDM.exe`. First launch may show SmartScreen — choose More info → Run anyway. WebView2 Runtime is required (usually present on Windows 11).
+          **Install:** unzip \`InstaDM-win-x64.zip\`, run \`InstaDM.exe\`. First launch may show SmartScreen — choose More info → Run anyway. WebView2 Runtime is required (usually present on Windows 11).
+
+          **SHA-256:** \`${HASH}\`
 
           See README.md Install section and CHANGELOG.md for details.
 
-          **Privacy:** pre-release. The stronger “only Instagram/Meta traffic” runtime claim is not asserted until `docs/NETWORK_AUDIT.md` is completed.
+          **Safety:** no installer, no admin elevation, no tray/startup agent, no auto-updater, no analytics SDK. App-owned data stays under \`%LOCALAPPDATA%\\InstaDM\`. Login credentials are typed only into Instagram’s own page. The stronger “only Instagram/Meta traffic from app-owned processes” claim awaits \`docs/NETWORK_AUDIT.md\`.
           EOF
           )
-          # Strip leading indentation from the heredoc for cleaner release notes.
-          NOTES="$(printf '%s\n' "$NOTES" | sed 's/^          //')"
-          gh release create "$TAG" InstaDM-win-x64.zip \
+          PRERELEASE_ARGS=()
+          case "$TAG" in
+            v0.*|*-preview*|*-rc*) PRERELEASE_ARGS=(--prerelease) ;;
+          esac
+          gh release create "$TAG" InstaDM-win-x64.zip InstaDM-win-x64.zip.sha256 \
             --title "$TAG" \
-            --prerelease \
+            "${PRERELEASE_ARGS[@]}" \
             --notes "$NOTES"

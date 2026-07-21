@@ -86,9 +86,11 @@ never leave it.
 
 - Instagram's web client is the source of truth. URL redesigns may require
   updates to the navigation policy, JS guard, or cosmetic CSS.
-- This is a **preview** release. The stronger claim that app-owned processes
-  contact only Instagram/Meta endpoints is **not** asserted until
-  `docs/NETWORK_AUDIT.md` is completed for a Release build.
+- This is a **public release**. The stronger claim that app-owned processes
+  contact only Instagram/Meta endpoints is gated on completing
+  `docs/NETWORK_AUDIT.md` for a Release build; until then, assume Instagram
+  traffic plus whatever the WebView2/Windows platform may initiate without
+  app-supplied account data.
 - For personal use. Do not use with multiple accounts in parallel.
 - Unsigned builds will trip SmartScreen until code signing is added.
 

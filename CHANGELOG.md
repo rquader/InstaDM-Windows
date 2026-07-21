@@ -5,10 +5,11 @@ All notable changes to this project are documented here. Dates use
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-07-22
+## [1.0.0] - 2026-07-22
 
-First public **preview** release of InstaDM for Windows — a focused
-Instagram direct-messages client using WinUI 3 + WebView2.
+First public release of InstaDM for Windows — a focused Instagram
+direct-messages client using WinUI 3 + WebView2. (Supersedes the brief
+`v0.1.0` tag.)
 
 ### Highlights
 
@@ -30,7 +31,8 @@ Instagram direct-messages client using WinUI 3 + WebView2.
 - **Unread notification core** — title parser + baseline state machine
   (WinUI toast/taskbar host wiring still pending).
 - **Distribution** — unsigned `InstaDM-win-x64.zip` via GitHub Releases
-  (self-contained, unpackaged). No auto-updater.
+  (self-contained, unpackaged). Runs as a normal user (`asInvoker`). No
+  auto-updater, no installer, no startup task, no tray resident.
 
 ### Intentional behavior / limitations
 
@@ -39,17 +41,28 @@ Instagram direct-messages client using WinUI 3 + WebView2.
   can open a bare URL with no cookies/headers/referrer.
 - Shared Posts navigation stays unavailable; inline shared media in threads
   still works when Instagram renders it.
-- Runtime network audit (`docs/NETWORK_AUDIT.md`) is **not** complete —
-  do not treat this preview as proving Instagram-only traffic yet.
+- Runtime network audit (`docs/NETWORK_AUDIT.md`) remains the gate for the
+  stronger “only Instagram/Meta traffic from app-owned processes” claim —
+  WebView2/OS components may still have platform diagnostics outside app
+  control until that audit is finished.
 
 ### Requirements
 
 - Windows 10 version 1809+ or Windows 11 (x64)
 - WebView2 Runtime (Evergreen; typically already installed on Windows 11)
 
+### Safety notes for downloaders
+
+- The zip contains only the app and its self-contained .NET / Windows App
+  SDK runtime files — no cookies, credentials, or account data.
+- Debug symbol (`.pdb`) files are stripped from Release zips.
+- First launch may show SmartScreen because the build is **unsigned** (same
+  class of warning as the unsigned macOS `.app`). That is not malware; it
+  means Windows has not seen a Microsoft-trusted signature yet.
+
 ---
 
 ## Pre-release development
 
-Milestones M0–M9 and M10 core landed before the v0.1.0 tag. See
+Milestones M0–M9 and M10 core landed before the v1.0.0 tag. See
 `docs/IMPLEMENTATION_PLAN.md` and `docs/HANDOFF.md`.

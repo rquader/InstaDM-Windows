@@ -7,14 +7,17 @@
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <RootNamespace>InstaDM.App</RootNamespace>
     <AssemblyName>InstaDM</AssemblyName>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <!-- Unpackaged (self-contained WinAppSDK) for the private preview:
-         no signing requirement, simple xcopy-style distribution.
-         Packaging strategy is finalized in M12 (docs/IMPLEMENTATION_PLAN.md). -->
+    <!-- Unpackaged (self-contained WinAppSDK) for GitHub Releases:
+         no signing requirement, simple unzip-and-run distribution.
+         No auto-updater. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Allows restore/analysis of this Windows-targeted project from the
