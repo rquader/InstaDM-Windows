@@ -73,7 +73,7 @@ Commit: `build: scaffold native Windows solution and tests`
 
 ---
 
-## M4 — Pure navigation policy and adversarial tests — `NOT STARTED`
+## M4 — Pure navigation policy and adversarial tests — `DONE`
 
 | Task | Description | FALLBACK-SAFE |
 | --- | --- | --- |
@@ -87,6 +87,19 @@ Commit: `build: scaffold native Windows solution and tests`
 
 Exit: pure, deterministic, tested before WebView integration; C#/JS cannot drift.
 Commit: `feat: implement tested Instagram navigation policy`
+
+Status notes (2026-07-22): all tasks complete, 169/169 tests pass on macOS.
+Implementation details worth knowing before M5/M6:
+- Dot segments (literal and %2e-encoded) are RFC 3986-resolved by `Uri`
+  before judgment — same resolution the browser applies — and tests pin it.
+- Encoded slashes, backslashes, userinfo, punycode/unicode hosts, non-443
+  ports, and non-https schemes all fail canonicalization (blocked).
+- SharedPosts prefixes are never exported to the JS guard payload; the guard
+  fails closed on posts/reels and the native layer alone grants the
+  DM-sourced exception (`NavigationContext.FromDm`).
+- `IsIncidentalBlockedPrefetch` encodes the macOS heal-thrash lesson: feed/
+  explore/reels/notifications/profile prefetches are cancelled silently.
+- Wire payload is versioned (`PolicyScriptBuilder.PayloadVersion`).
 
 ---
 
