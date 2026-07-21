@@ -292,14 +292,28 @@ public sealed partial class InstagramWebViewHost : UserControl
     }
 
     /// <summary>Invariant: popups can never bypass the top-level policy.
-    /// Allowed destinations open in this same view; everything else is
-    /// dropped. No second window ever hosts the session.</summary>
+    /// Only https Instagram user surfaces may navigate in this same view;
+    /// everything else (including javascript:/data: and off-platform) is
+    /// dropped. No second window ever hosts the session. External-browser
+    /// handoff is intentionally not wired yet (settings default off).</summary>
     private void OnNewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)
     {
         args.Handled = true;
-        if (_policy.IsUserSurface(args.Uri))
+        var uri = args.Uri;
+        if (string.IsNullOrEmpty(uri))
         {
-            sender.Navigate(args.Uri);
+            return;
+        }
+
+        // Fail closed on unexpected schemes before policy classification.
+        if (!uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_policy.IsUserSurface(uri))
+        {
+            sender.Navigate(uri);
         }
     }
 

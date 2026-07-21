@@ -9,7 +9,7 @@ namespace InstaDM.App.Services;
 /// exactly one question — does the Instagram session cookie exist — and by
 /// construction cannot answer any other: the cookie list is enumerated for
 /// the name only, and no value, domain detail, or expiry ever leaves this
-/// method. Never add logging here.
+/// method. Never add logging here. Probe faults fail closed as "absent".
 /// </summary>
 public sealed class WebViewSessionCookieProbe : ISessionCookieProbe
 {
@@ -30,32 +30,65 @@ public sealed class WebViewSessionCookieProbe : ISessionCookieProbe
 
     public Task<bool> SessionCookieExistsAsync(CancellationToken cancellationToken)
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<bool>(cancellationToken);
+        }
+
         var completion = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
+        CancellationTokenRegistration registration = default;
+        if (cancellationToken.CanBeCanceled)
+        {
+            registration = cancellationToken.Register(
+                static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(),
+                completion);
+        }
 
         // CoreWebView2 is single-threaded; the watcher polls from the pool.
         if (!_dispatcher.TryEnqueue(async () =>
         {
             try
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    completion.TrySetCanceled(cancellationToken);
+                    return;
+                }
+
                 var cookies = await _core.CookieManager.GetCookiesAsync(InstagramOrigin);
                 var exists = false;
                 foreach (var cookie in cookies)
                 {
-                    if (string.Equals(cookie.Name, SessionCookieName, StringComparison.Ordinal))
+                    // Name only — never read Value, Domain, Path, or Expires.
+                    var name = cookie.Name;
+                    if (string.Equals(name, SessionCookieName, StringComparison.Ordinal))
                     {
                         exists = true;
-                        break; // name checked, value never read
+                        break;
                     }
                 }
+
                 completion.TrySetResult(exists);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                completion.TrySetException(ex);
+                completion.TrySetCanceled(cancellationToken);
+            }
+            catch
+            {
+                // Fail closed. Do not propagate cookie-API exceptions (may
+                // carry sensitive context in messages under some runtimes).
+                completion.TrySetResult(false);
+            }
+            finally
+            {
+                registration.Dispose();
             }
         }))
         {
+            registration.Dispose();
             completion.TrySetResult(false); // dispatcher shut down: fail closed
         }
 

@@ -22,7 +22,7 @@ public sealed class LocalSettingsStoreTests
         Assert.AreEqual(NotificationLevel.Standard, settings.NotificationLevel);
         Assert.AreEqual(30, settings.PollIntervalSeconds);
         Assert.IsFalse(settings.FollowRequestsEnabled);
-        Assert.IsTrue(settings.OpenLinksInExternalBrowser);
+        Assert.IsFalse(settings.OpenLinksInExternalBrowser);
     }
 
     [TestMethod]

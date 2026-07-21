@@ -25,15 +25,17 @@ privacy impact, status.
 ## ADR-002 — Repository name and visibility
 
 - **Date:** 2026-07-22
-- **Status:** Accepted
+- **Status:** Accepted (updated)
 - **Context:** Local folder is `InstagramDMOnlyAppForWindows`; the prompt
-  suggests `InstaDM-Windows` as the default repository name.
-- **Decision:** Future GitHub repository name `InstaDM-Windows`, **private** by
-  default. The local folder name is irrelevant to the remote name. No push
-  until initial docs, ignore rules, and a secret scan pass. Note: `gh` token on
-  this host is currently invalid (keyring); remote creation deferred until the
-  user refreshes auth — recorded as a blocker, not a stopping condition.
-- **Privacy impact:** Private visibility prevents premature exposure.
+  suggests `InstaDM-Windows` as the default repository name. Default was
+  private until the user explicitly requested a public repository.
+- **Decision:** GitHub repository name `InstaDM-Windows`. Visibility is
+  **public** by explicit user request (2026-07-22). Description mirrors the
+  macOS InstaDM wording with WinUI 3 / WebView2 accuracy. Secret scanning and
+  push protection should stay enabled. No personal paths, live account data,
+  captures, or `.instadm-local.env` may ever be pushed.
+- **Privacy impact:** Public source requires honest pre-release network claims
+  (`README.md` / `SECURITY.md`) and strict ignore rules.
 
 ---
 

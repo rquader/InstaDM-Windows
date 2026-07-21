@@ -28,6 +28,7 @@ foreach ($file in ($sourceFiles | Where-Object Extension -eq '.csproj')) {
 
 # 2. Sensitive-value logging patterns in C# / JS.
 #    Cookie values, session ids, auth headers, or bodies must never be logged.
+#    Also forbid reading cookie.Value anywhere in production sources.
 $logPatterns = @(
     'sessionid\s*[=:].*(Log|Console|Debug|Trace|NSLog|print)',
     '(Log|Console\.Write|Debug\.Write|Trace\.Write).*\b(cookie\.Value|CookieValue|Authorization|csrftoken)\b',
@@ -40,6 +41,16 @@ foreach ($file in ($sourceFiles | Where-Object { $_.Extension -in '.cs', '.js' }
         if ($content -match $pattern) {
             $failures += "Sensitive logging pattern '$pattern' in $($file.FullName)"
         }
+    }
+}
+
+# 2b. Production sources must never read cookie.Value (existence checks use Name only).
+foreach ($file in ($sourceFiles | Where-Object {
+    $_.Extension -eq '.cs' -and $_.FullName -match '[\\/]src[\\/]'
+})) {
+    $content = Get-Content $file.FullName -Raw
+    if ($content -match 'cookie\.Value|CookieValue') {
+        $failures += "Cookie value access in production source $($file.FullName)"
     }
 }
 

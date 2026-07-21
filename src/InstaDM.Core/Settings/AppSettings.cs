@@ -38,9 +38,10 @@ public sealed class AppSettings
     public bool FollowRequestsEnabled { get; set; }
 
     /// <summary>Open non-Instagram http(s) links in the system browser after
-    /// confirmation. Default on (macOS shipped behavior). Never transfers
-    /// cookies, headers, or referrer.</summary>
-    public bool OpenLinksInExternalBrowser { get; set; } = true;
+    /// confirmation. Default <c>false</c> until the handoff is implemented
+    /// without transferring cookies, headers, or referrer. When false,
+    /// unexpected destinations are dropped.</summary>
+    public bool OpenLinksInExternalBrowser { get; set; }
 
     /// <summary>Clamps poll interval to the allowed set; unknown values become
     /// the default. Used on load and before save.</summary>
