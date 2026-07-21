@@ -23,18 +23,20 @@ namespace InstaDM.App.Controls;
 public sealed partial class InstagramWebViewHost : UserControl
 {
     private readonly NavigationPolicy _policy = new();
+    private readonly NavigationRecoveryCoordinator _recovery;
     private readonly WebViewHostConfiguration _configuration;
     private readonly AuthenticationStateMachine _auth = new();
     private AuthSessionWatcher? _sessionWatcher;
     private bool _initialized;
 
-    /// <summary>Raised with a schema-validated guard report. The recovery
-    /// coordinator (M8) subscribes; nothing else consumes web messages.</summary>
+    /// <summary>Raised with a schema-validated guard report after the recovery
+    /// coordinator has already absorbed it. External subscribers are optional.</summary>
     public event EventHandler<GuardMessage>? GuardReported;
 
     public InstagramWebViewHost()
     {
         InitializeComponent();
+        _recovery = new NavigationRecoveryCoordinator(_policy);
 
         _configuration = WebViewHostConfiguration.Create(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -174,7 +176,9 @@ public sealed partial class InstagramWebViewHost : UserControl
 
     /// <summary>Invariant: the state machine learns which surface CATEGORY
     /// committed (auth / challenge / DM) — never the URL itself. Successful
-    /// completion while Recovering also closes the process-failure budget.</summary>
+    /// completion while Recovering also closes the process-failure budget.
+    /// Recovery then records last-valid DM or rebounds off-policy commits
+    /// without calling Stop()/reload.</summary>
     private void OnNavigationCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
     {
         if (!args.IsSuccess)
@@ -205,18 +209,65 @@ public sealed partial class InstagramWebViewHost : UserControl
                 HandleAuthEvent(AuthenticationEvent.DirectSurfaceCommitted);
                 break;
         }
+
+        ApplyRecovery(sender, _recovery.OnMainDocumentCommitted(sender.Source));
     }
 
-    /// <summary>Invariant: no disallowed URL becomes the top-level document.
-    /// Uses the network-request layer (auth surfaces and DM routes pass);
-    /// blocked incidental hops are cancelled without any further reaction —
-    /// stop/reload here is what broke thread scroll history on macOS.</summary>
+    /// <summary>Invariant: disallowed top-level navigations are cancelled
+    /// here only — never Stop()/reload (that aborted pagination XHR on
+    /// macOS). User escapes rebound to the last valid DM; incidental hops
+    /// are silent. Same-thread re-nav after settle is suppressed.</summary>
     private void OnNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
     {
-        var decision = _policy.DecideNetworkRequest(args.Uri);
-        if (!decision.IsAllowed)
+        var decision = _recovery.OnNavigationStarting(args.Uri, MapInitiator(args));
+        ApplyRecovery(sender, decision, args);
+    }
+
+    private static NavigationInitiator MapInitiator(CoreWebView2NavigationStartingEventArgs args) =>
+        args.IsUserInitiated
+            ? NavigationInitiator.UserActivated
+            : NavigationInitiator.Other;
+
+    /// <summary>Executes a recovery decision. Never calls Stop().</summary>
+    private static void ApplyRecovery(
+        CoreWebView2 core,
+        RecoveryDecision decision,
+        CoreWebView2NavigationStartingEventArgs? starting = null)
+    {
+        switch (decision.Action)
         {
-            args.Cancel = true;
+            case RecoveryActionKind.None:
+                break;
+
+            case RecoveryActionKind.CancelSilent:
+            case RecoveryActionKind.CancelSameThread:
+                if (starting is not null)
+                {
+                    starting.Cancel = true;
+                }
+
+                break;
+
+            case RecoveryActionKind.CancelAndRebound:
+                if (starting is not null)
+                {
+                    starting.Cancel = true;
+                }
+
+                if (decision.ReboundUrl is not null)
+                {
+                    core.Navigate(decision.ReboundUrl);
+                }
+
+                break;
+
+            case RecoveryActionKind.Rebound:
+                if (decision.ReboundUrl is not null)
+                {
+                    core.Navigate(decision.ReboundUrl);
+                }
+
+                break;
         }
     }
 
@@ -271,14 +322,32 @@ public sealed partial class InstagramWebViewHost : UserControl
     }
 
     /// <summary>Invariant: web messages are untrusted; only exact-schema
-    /// guard reports pass, as validated types — raw JSON never propagates.</summary>
+    /// guard reports pass. Blocked SPA transitions are absorbed by recovery
+    /// without rebound (the page never left the DM document).</summary>
     private void OnWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
     {
-        if (GuardMessage.TryParse(args.WebMessageAsJson, out var message))
+        if (!GuardMessage.TryParse(args.WebMessageAsJson, out var message))
         {
-            GuardReported?.Invoke(this, message);
+            return;
         }
+
+        _recovery.OnGuardBlocked(ToInstagramSurface(message.Surface));
+        GuardReported?.Invoke(this, message);
     }
+
+    private static InstagramSurface ToInstagramSurface(GuardReportedSurface surface) =>
+        surface switch
+        {
+            GuardReportedSurface.Malformed => InstagramSurface.Malformed,
+            GuardReportedSurface.OffPlatform => InstagramSurface.OffPlatform,
+            GuardReportedSurface.Feed => InstagramSurface.HomeFeed,
+            GuardReportedSurface.Explore => InstagramSurface.Explore,
+            GuardReportedSurface.Reels => InstagramSurface.Reels,
+            GuardReportedSurface.Stories => InstagramSurface.Stories,
+            GuardReportedSurface.Post => InstagramSurface.Post,
+            GuardReportedSurface.DirectShell => InstagramSurface.DirectShell,
+            _ => InstagramSurface.UnknownInstagram,
+        };
 
     /// <summary>Clears all Instagram data in the dedicated profile: cookies,
     /// cache, storage, everything. Used by the sign-out flow (M9) and never
@@ -293,6 +362,7 @@ public sealed partial class InstagramWebViewHost : UserControl
         }
 
         _sessionWatcher?.Stop();
+        _recovery.Reset();
         await core.Profile.ClearBrowsingDataAsync();
         HandleAuthEvent(AuthenticationEvent.DataCleared);
         core.Navigate(NavigationPolicy.InboxUrl); // Instagram will show login

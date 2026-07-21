@@ -184,12 +184,20 @@ resets the failure budget (ADR-007). Process-failure recovery is owned by the
 state machine; the host no longer keeps a parallel counter.
 Commit: `feat: implement private authentication state machine` — FALLBACK-SAFE: no
 
-## M8 — Navigation recovery and messaging reliability — `NOT STARTED`
+## M8 — Navigation recovery and messaging reliability — `DONE`
 
-Last-valid-DM tracking; top-level escape cancellation without Stop()/reload
-damage; same-thread suppression; cooldown/debounce; popup/frame/download/
-permission policies; harness regression tests.
-Commit: `feat: contain Instagram escapes without breaking chat history` — FALLBACK-SAFE: no
+| Task | Description | Status | FALLBACK-SAFE |
+| --- | --- | --- | --- |
+| M8.1 | `NavigationRecoveryCoordinator` (last-valid DM, settle, same-thread, cooldown, loop cap) | DONE | no |
+| M8.2 | Table-driven Core tests for incidental cancel / user rebound / cold-launch | DONE | yes (adding cases) |
+| M8.3 | Host wiring: MapInitiator, ApplyRecovery, guard absorb, clear-data Reset | DONE | no |
+| M8.4 | Popup/frame/download/permission policies (already in M6 host; unchanged) | DONE | yes |
+
+Status notes (2026-07-22): 231 Core tests pass. Never calls WebView Stop()/
+reload for blocked hops. Rebound target is last settled DM URL (inbox
+fallback after loop cap). In-page Escape/chrome-dismiss deferred until live
+Windows testing shows stuck overlays (SOURCE_BEHAVIOR B7).
+Commit: `feat: contain Instagram escapes without breaking chat history`
 
 ## M9 — Native shell, settings, and optional surfaces — `NOT STARTED`
 

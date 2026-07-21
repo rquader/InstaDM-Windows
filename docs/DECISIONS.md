@@ -201,3 +201,21 @@ privacy impact, status.
   auth path by construction; synthetic fakes keep tests account-free.
 - **Alternatives rejected:** redirect-URL heuristics; reading cookie values
   “just for debugging”; parallel failure counters in the UI host.
+
+---
+
+## ADR-008 — Navigation recovery without Stop()/reload
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** macOS oscillation war (SOURCE_BEHAVIOR B7): `stopLoading()`
+  aborted pagination XHR; reacting to incidental prefetches caused heal-
+  thrash; same-thread re-nav snapped scroll; rebound loops needed cooldowns.
+- **Decision:** Pure `NavigationRecoveryCoordinator` owns last-valid DM URL
+  (in-memory), settled-state gate for same-thread suppression, 750ms bounce
+  cooldown, and a 5-rebound/5s loop cap that fails closed to the inbox.
+  Host maps WebView2 `IsUserInitiated` → initiator; Cancel* never calls
+  Stop(). Guard-blocked SPA transitions are absorbed without rebound.
+- **Privacy impact:** rebound URLs stay in memory only; diagnostics use
+  coarse surfaces. Persistence of last-valid DM deferred to M9 with privacy
+  review (prefer coarse destination over thread id if persisted).
