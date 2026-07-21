@@ -1,0 +1,21 @@
+<UserControl
+    x:Class="InstaDM.App.Controls.InstagramWebViewHost"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+
+    <Grid>
+        <!-- CoreWebView2 is initialized explicitly in code-behind so every
+             privacy setting is applied before the first navigation. No
+             Source property here — nothing may load ahead of hardening. -->
+        <controls:WebView2 x:Name="WebView" />
+
+        <InfoBar
+            x:Name="RuntimeFailureBar"
+            IsOpen="False"
+            IsClosable="False"
+            Severity="Error"
+            Title="The embedded browser stopped"
+            Message="Reloading the messaging view…" />
+    </Grid>
+</UserControl>

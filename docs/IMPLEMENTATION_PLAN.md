@@ -137,7 +137,28 @@ Status notes (2026-07-22): complete — 25 Node tests + C# fixture-drift test.
 
 ---
 
-## M6 — Privacy-hardened WebView host — `NOT STARTED`
+## M6 — Privacy-hardened WebView host — `IN PROGRESS`
+
+Status notes (2026-07-22): implemented; Windows CI validation pending.
+- `src/InstaDM.Core/WebHost/WebViewHostConfiguration.cs`: ADR-006 as data —
+  every privacy value is a pinned, tested constant (SmartScreen off at
+  environment level, custom crash reporting on = dumps stay local, password
+  autosave/autofill/extensions/SSO off, tracking prevention on, DevTools
+  Debug-only, dedicated `%LOCALAPPDATA%\InstaDM\WebView2` user-data folder,
+  Chromium background-service switches). Tests fail if any value changes.
+- `src/InstaDM.Core/WebHost/GuardMessage.cs`: exact-schema web-message
+  parser (security boundary — page script is untrusted); rejects extra keys,
+  wrong types/version/source, unknown enum values, oversized payloads.
+- `src/InstaDM.App/Controls/InstagramWebViewHost.xaml(.cs)`: ordered init
+  (environment → settings → document-start guard splice → events → first
+  navigation); handlers each enforce one named invariant: main/frame
+  navigation policy, popup no-bypass (allowed targets navigate in-view),
+  permissions default-deny, downloads cancelled, process-failure recovery
+  with cap + reset-on-success, schema-validated guard reports re-raised as
+  a typed event for the M8 recovery coordinator.
+- macOS local build of InstaDM.App fails in the XAML compiler (expected,
+  Windows required); Core tests 192/192 pass. Windows CI validates the App
+  compile once the remote exists.
 
 Explicit environment creation; dedicated local user-data folder; privacy
 settings before navigation; documented event wiring; document-start script
