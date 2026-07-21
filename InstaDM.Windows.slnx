@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/InstaDM.App/InstaDM.App.csproj" />
+    <Project Path="src/InstaDM.Core/InstaDM.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>InstaDM.Core</RootNamespace>
+    <Description>
+      Platform-neutral policy, state machines, and privacy logic for InstaDM
+      for Windows. No UI, no WebView, no platform APIs — everything here is
+      pure and unit-testable on any host. Zero third-party dependencies by
+      policy (see docs/PRIVACY_THREAT_MODEL.md).
+    </Description>
+  </PropertyGroup>
+
+</Project>

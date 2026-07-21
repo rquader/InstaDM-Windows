@@ -1,0 +1,27 @@
+<Application
+    x:Class="InstaDM.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Sage palette accents (light/dark) — the app's only theme
+                 identity; Instagram's own surface is never themed. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SagePrimaryColor">#6B8C5F</Color>
+                    <Color x:Key="SageAccentColor">#4A6B3C</Color>
+                    <Color x:Key="SageBackgroundColor">#F7F7F2</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SagePrimaryColor">#9CB58F</Color>
+                    <Color x:Key="SageAccentColor">#B8D1A8</Color>
+                    <Color x:Key="SageBackgroundColor">#161A15</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
