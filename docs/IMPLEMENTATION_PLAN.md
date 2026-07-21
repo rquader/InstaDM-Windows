@@ -103,7 +103,7 @@ Implementation details worth knowing before M5/M6:
 
 ---
 
-## M5 — Local SPA harness and document-start guard — `NOT STARTED`
+## M5 — Local SPA harness and document-start guard — `DONE`
 
 | Task | Description | FALLBACK-SAFE |
 | --- | --- | --- |
@@ -114,6 +114,26 @@ Implementation details worth knowing before M5/M6:
 
 Exit: disallowed transitions blocked before fixture handlers; no DOM scraping;
 no Internet needed. Commit: `test: add local SPA harness for early navigation containment`
+
+Status notes (2026-07-22): complete — 25 Node tests + C# fixture-drift test.
+- `src/InstaDM.App/Web/containment-guard.js`: factory (`createGuard(g,policy)`)
+  so tests install into a fake window; production path self-invokes against
+  the real `window`. Mirrors UrlCanonicalizer/PathMatcher exactly; capture-
+  phase click/auxclick on window; pushState/replaceState wrapped; popstate
+  deliberately untouched (native recovery watches committed locations);
+  full stand-down while the CURRENT page is an auth surface; fail closed on
+  judgment errors; malformed payload deactivates the guard (native layer
+  remains authoritative).
+- Bridge messages: fixed schema `{v, source, kind, surface}` — coarse
+  category strings only, never URLs/content (tests assert this).
+- Harness is a fake-DOM Node module (`tests/Fixtures/local-spa-harness/`)
+  rather than a browser HTML fixture: models capture/bubble ordering,
+  stopImmediatePropagation, nested link targets, and a committing History
+  API — everything the guard touches — with zero browser dependency. A real
+  WebView2 run remains part of M6+ Windows validation.
+- `policy.default.json` fixture is pinned to `PolicyScriptBuilder` output by
+  `PolicyFixtureDriftTests` (C#) and consumed by the Node tests, so the
+  C# policy, the fixture, and the JS guard cannot drift pairwise.
 
 ---
 

@@ -1,50 +1,51 @@
 # InstaDM for Windows — Active Handoff
 
-1. **Last updated:** 2026-07-22 03:20 (UTC+6)
-2. **Phase / milestone / task:** M4 (navigation policy) complete → committing; next M5 (SPA harness + guard)
-3. **Current objective:** Commit the tested navigation policy, then build the
-   local SPA containment harness and the document-start guard (M5).
-4. **Repository state:** branch `main`, HEAD `48d11ed` (M3 commit), no remote.
-5. **Working tree:** 11 new files (7 policy sources, 4 test suites),
-   intentional, M4 commit pending.
-6. **Files changed:** `src/InstaDM.Core/Navigation/` — `CanonicalUrl.cs`,
-   `UrlCanonicalizer.cs` (https-only, lowercase host, no userinfo/punycode/
-   unicode hosts, 443 only, RFC 3986 dot-segment resolution, encoded-slash/
-   backslash fail-closed), `PathMatcher.cs` (directory-boundary semantics,
-   single matcher shared with JS), `InstagramSurface.cs` (taxonomy, committed
-   in M3), `NavigationDecision.cs` (+ `DecisionReason`, `NavigationContext`),
-   `PolicyOptions.cs` (FollowRequests/SharedPosts gates, default off),
-   `NavigationPolicy.cs` (layered: network request → user surface → helpers;
-   `IsIncidentalBlockedPrefetch`, `ShouldRecoverFromMainDocument`),
-   `PolicyScriptBuilder.cs` (versioned JSON payload, `__INSTADM_POLICY__`
-   placeholder splice, SharedPosts prefixes deliberately never exported).
-   `tests/InstaDM.Core.Tests/` — `UrlCanonicalizerTests.cs`,
-   `PathMatcherTests.cs`, `NavigationPolicyTests.cs`,
-   `PolicyScriptBuilderTests.cs`.
-7. **Completed since last checkpoint:** M3 committed (`48d11ed`); full M4
-   implementation and adversarial test table.
-8. **Recent commands:** `dotnet test tests/InstaDM.Core.Tests/…` —
-   **169/169 PASSED** (macOS, net10.0).
-9. **Test/build status:** Core tests PASS locally. `InstaDM.App`: NOT RUN -
-   WINDOWS ENVIRONMENT REQUIRED. `tools/privacy-audit.ps1`: CI-only (no pwsh
-   on host).
-10. **Decisions:** dot segments are RFC 3986-resolved (browser-equivalent)
-    before judgment rather than rejected — tests pin the resolution; JS guard
-    receives no SharedPosts prefixes (source-gating is native-only, guard
-    fails closed); MSTest 4 requires `[TestMethod]` on data-driven tests
-    (`DataTestMethod` obsolete = build error under warnings-as-errors).
-11. **Privacy status:** clean. Policy payload contains only static hostnames/
-    path prefixes; test asserts absence of cookie/session/csrf/authorization/
-    bearer markers. Decision reasons are coarse enums, never raw URLs.
+1. **Last updated:** 2026-07-22 03:50 (UTC+6)
+2. **Phase / milestone / task:** M5 (SPA harness + guard) complete → committing; next M6 (WebView2 host)
+3. **Current objective:** Commit the containment guard and harness, then
+   implement the privacy-hardened WebView2 host (M6) in `InstaDM.App`.
+4. **Repository state:** branch `main`, HEAD `b615fd2` (M4 commit), no remote.
+5. **Working tree:** new guard + harness files and CI/plan updates,
+   intentional, M5 commit pending.
+6. **Files changed:** `src/InstaDM.App/Web/containment-guard.js`
+   (document-start guard: factory pattern, capture-phase click/auxclick,
+   history wrap, auth stand-down, fail-closed, `__INSTADM_POLICY__` splice
+   point, fixed-schema bridge messages with coarse categories only);
+   `tests/Fixtures/local-spa-harness/fake-dom.js` (fake window: capture/
+   bubble dispatch, committing History API, nested links, webview bridge);
+   `tests/Fixtures/local-spa-harness/policy.default.json` (pinned builder
+   output); `tests/InstaDM.WebHarness.Tests/guard.test.js` (25 tests);
+   `tests/InstaDM.Core.Tests/PolicyFixtureDriftTests.cs` (+ csproj fixture
+   copy); `.github/workflows/windows-ci.yml` (node --test step);
+   `docs/IMPLEMENTATION_PLAN.md` (M4/M5 status + notes).
+7. **Completed since last checkpoint:** M4 committed (`b615fd2`); full M5.
+8. **Recent commands:** `node --test tests/InstaDM.WebHarness.Tests/
+   guard.test.js` — **25/25 PASSED**; `dotnet test …Core.Tests…` —
+   **170/170 PASSED**.
+9. **Test/build status:** C# 170 pass (macOS), JS harness 25 pass (Node 25,
+   CI uses runner's Node). `InstaDM.App`: NOT RUN - WINDOWS ENVIRONMENT
+   REQUIRED. `tools/privacy-audit.ps1`: CI-only.
+10. **Decisions:** harness is a fake-DOM Node module instead of a browser
+    HTML fixture (models exactly what the guard touches; zero browser deps;
+    real WebView2 validation deferred to M6+ on Windows); popstate not
+    intercepted (recovery layer's job); malformed policy payload deactivates
+    the guard rather than half-judging (native policy stays authoritative);
+    guard never receives SharedPosts prefixes — native-only source-gating.
+11. **Privacy status:** clean. Guard reads no DOM text/inputs/cookies; walks
+    parentNode chain for `<a href>` only; bridge schema `{v, source, kind,
+    surface}` with enum-like strings; tests assert no URLs in reports.
 12. **Known blockers:** `gh` token invalid → no remote/CI runs yet.
-13. **Next action:** commit M4 (`feat: implement tested Instagram navigation
-    policy`), then M5: create `tests/Fixtures/local-spa-harness/` (links,
-    capture/bubble handlers, pushState/replaceState/popstate, frames,
-    popups, pagination-like fetches) and
-    `src/InstaDM.App/Web/containment-guard.js` consuming the
-    `__INSTADM_POLICY__` payload, with Node-based harness tests.
-14. **Recovery:** if interrupted, re-run
-    `./.dotnet/dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj`.
+13. **Next action:** commit M5 (`test: add local SPA harness for early
+    navigation containment`), then M6: `src/InstaDM.App/Controls/
+    InstagramWebViewHost.xaml(.cs)` + `Services/WebViewHostService` —
+    explicit `CoreWebView2Environment` with dedicated `%LOCALAPPDATA%`-style
+    user-data folder, privacy settings (SmartScreen/autofill/password-save/
+    tracking-prevention/SSO per docs/DECISIONS.md ADR-006), event wiring,
+    `AddScriptToExecuteOnDocumentCreatedAsync` with
+    `PolicyScriptBuilder.InjectIntoScript`, clear-browsing-data, process-
+    failure handling. Core-side logic (host config model) testable on macOS;
+    WinUI wiring validated by CI compile.
+14. **Recovery:** if interrupted, re-run both test commands from item 8.
 15. **Next commit boundary:** now. Message:
-    `feat: implement tested Instagram navigation policy`
+    `test: add local SPA harness for early navigation containment`
 16. **Handoff synchronization status:** IN SYNC via `tools/sync-handoff.sh`.

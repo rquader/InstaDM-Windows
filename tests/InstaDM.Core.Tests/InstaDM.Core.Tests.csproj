@@ -17,4 +17,12 @@
     <ProjectReference Include="../../src/InstaDM.Core/InstaDM.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Shared with the Node harness; PolicyFixtureDriftTests pins it to
+         PolicyScriptBuilder output. -->
+    <None Include="../Fixtures/local-spa-harness/policy.default.json"
+          Link="Fixtures/policy.default.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

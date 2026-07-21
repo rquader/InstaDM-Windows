@@ -36,6 +36,12 @@ jobs:
       - name: Test (synthetic fixtures only)
         run: dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj --configuration Release --no-restore
 
+      # Containment-guard tests run against a fake window in Node's built-in
+      # test runner — no browser, no network, no account. Node ships on
+      # windows-latest runners.
+      - name: Guard harness tests (local, no network)
+        run: node --test tests/InstaDM.WebHarness.Tests/guard.test.js
+
       - name: Privacy scan
         shell: pwsh
         run: ./tools/privacy-audit.ps1
