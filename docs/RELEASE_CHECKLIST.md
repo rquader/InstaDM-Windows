@@ -39,8 +39,8 @@ blockers mean **no release**, never a softened claim.
 - [ ] Signing requirements documented; no keys in repo.
 - [ ] No auto-updater or remote update service present.
 - [ ] Release notes accurate about privacy (claims match audit evidence).
-- [ ] Repository visibility remains private unless user explicitly approved
-      otherwise.
+- [ ] Repository visibility is intentional (public or private per maintainer).
+- [ ] Unsigned SmartScreen / first-launch steps documented in README.
 
 ## Continuity
 

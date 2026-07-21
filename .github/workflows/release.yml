@@ -1,0 +1,98 @@
+name: release
+
+# Builds an unsigned, self-contained WinUI Release folder when a v* tag is
+# pushed, zips it, and uploads it as a GitHub Release asset. Mirrors the
+# macOS InstaDM release flow (tag → CI → zip → gh release create).
+#
+# Trigger:
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# Privacy: publishes only the synthetic build output. Never attaches logs,
+# WebView profiles, captures, or live-account data.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup .NET (respects global.json)
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: |
+          dotnet restore src/InstaDM.App/InstaDM.App.csproj
+          dotnet restore tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj
+
+      - name: Test (synthetic fixtures only)
+        run: |
+          dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj --configuration Release --no-restore
+          node --test tests/InstaDM.WebHarness.Tests/guard.test.js
+
+      - name: Privacy scan
+        shell: pwsh
+        run: ./tools/privacy-audit.ps1
+
+      - name: Publish (Release, win-x64, self-contained, unpackaged)
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:GITHUB_WORKSPACE "artifacts/InstaDM"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          dotnet publish src/InstaDM.App/InstaDM.App.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:Platform=x64 `
+            -p:PublishDir="$out/" `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true
+          if (-not (Test-Path (Join-Path $out "InstaDM.exe"))) {
+            Write-Error "InstaDM.exe missing from publish output"
+            Get-ChildItem -Recurse $out | Select-Object -First 80 FullName
+            exit 1
+          }
+          Get-ChildItem $out | Select-Object Name, Length
+
+      - name: Zip the app folder
+        shell: pwsh
+        run: |
+          $artifacts = Join-Path $env:GITHUB_WORKSPACE "artifacts"
+          $zip = Join-Path $env:GITHUB_WORKSPACE "InstaDM-win-x64.zip"
+          if (Test-Path $zip) { Remove-Item $zip }
+          Compress-Archive -Path (Join-Path $artifacts "InstaDM") -DestinationPath $zip
+          Get-Item $zip | Format-List Name, Length, FullName
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES=$(cat <<'EOF'
+          Unsigned Windows build (self-contained, unpackaged WinUI + WebView2).
+
+          **Install:** unzip `InstaDM-win-x64.zip`, run `InstaDM.exe`. First launch may show SmartScreen — choose More info → Run anyway. WebView2 Runtime is required (usually present on Windows 11).
+
+          See README.md Install section and CHANGELOG.md for details.
+
+          **Privacy:** pre-release. The stronger “only Instagram/Meta traffic” runtime claim is not asserted until `docs/NETWORK_AUDIT.md` is completed.
+          EOF
+          )
+          # Strip leading indentation from the heredoc for cleaner release notes.
+          NOTES="$(printf '%s\n' "$NOTES" | sed 's/^          //')"
+          gh release create "$TAG" InstaDM-win-x64.zip \
+            --title "$TAG" \
+            --prerelease \
+            --notes "$NOTES"
