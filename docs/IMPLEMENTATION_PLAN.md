@@ -137,9 +137,10 @@ Status notes (2026-07-22): complete — 25 Node tests + C# fixture-drift test.
 
 ---
 
-## M6 — Privacy-hardened WebView host — `IN PROGRESS`
+## M6 — Privacy-hardened WebView host — `DONE`
 
-Status notes (2026-07-22): implemented; Windows CI validation pending.
+Status notes (2026-07-22): committed (`497074d`). Windows CI validation still
+pending (no remote yet; `gh` auth keyring invalid on this host).
 - `src/InstaDM.Core/WebHost/WebViewHostConfiguration.cs`: ADR-006 as data —
   every privacy value is a pinned, tested constant (SmartScreen off at
   environment level, custom crash reporting on = dumps stay local, password
@@ -167,10 +168,20 @@ failure handling. Windows CI compile; interactive behavior marked
 `NOT RUN - WINDOWS ENVIRONMENT REQUIRED`.
 Commit: `feat: add privacy-hardened embedded Instagram host` — FALLBACK-SAFE: no
 
-## M7 — Authentication and session lifecycle — `NOT STARTED`
+## M7 — Authentication and session lifecycle — `DONE`
 
-Explicit state machine; narrow auth-surface policy; existence-only cookie
-watcher with cancellation/backoff; synthetic adapter tests.
+| Task | Description | Status | FALLBACK-SAFE |
+| --- | --- | --- | --- |
+| M7.1 | `AuthenticationState` / `AuthenticationEvent` enums | DONE | no |
+| M7.2 | Pure `AuthenticationStateMachine` (idempotent, capped process failure) | DONE | no |
+| M7.3 | `AuthSessionWatcher` + `ISessionCookieProbe` (existence only, backoff, single-flight) | DONE | no |
+| M7.4 | `WebViewSessionCookieProbe` (name check only; never `.Value`) | DONE | no |
+| M7.5 | Host wiring: surface commits, clear-data, unload stops pollers | DONE | no |
+| M7.6 | Synthetic adapter tests (login/2FA/challenge/expiry/logout/clear/fatal) | DONE | yes (adding cases) |
+
+Status notes (2026-07-22): 217 Core tests pass. Clear-data escapes Fatal and
+resets the failure budget (ADR-007). Process-failure recovery is owned by the
+state machine; the host no longer keeps a parallel counter.
 Commit: `feat: implement private authentication state machine` — FALLBACK-SAFE: no
 
 ## M8 — Navigation recovery and messaging reliability — `NOT STARTED`

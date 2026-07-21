@@ -53,7 +53,13 @@ $approvedHosts = @(
     'github.com', 'learn.microsoft.com', 'dot.net', 'aka.ms',
     'localhost', '127.0.0.1'
 )
-foreach ($file in ($sourceFiles | Where-Object { $_.Extension -in '.cs', '.js', '.xaml' })) {
+# Endpoint scan covers production sources only. Adversarial fixtures under
+# tests/ intentionally contain lookalike/evil hosts and must not trip this.
+$endpointScanFiles = $sourceFiles | Where-Object {
+    $_.Extension -in '.cs', '.js', '.xaml' -and
+    $_.FullName -notmatch '[\\/](tests|Fixtures)[\\/]'
+}
+foreach ($file in $endpointScanFiles) {
     $content = Get-Content $file.FullName -Raw
     foreach ($match in [regex]::Matches($content, $urlRegex)) {
         $url = $match.Value

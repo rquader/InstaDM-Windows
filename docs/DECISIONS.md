@@ -179,5 +179,25 @@ privacy impact, status.
 
 ---
 
-(Later ADRs — navigation policy shape details, auth state machine, and
-notification design — are appended below as they are made.)
+## ADR-007 — Authentication completion is cookie existence only
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** macOS learned that Instagram login (fresh, one-tap, 2FA,
+  checkpoint, auth_platform) hops through unpredictable routes; guessing
+  redirects caused loops. Cookie *values* must never enter app-owned state.
+- **Decision:**
+  - Pure `AuthenticationStateMachine` in `InstaDM.Core` is the only authority
+    for auth lifecycle transitions.
+  - Inputs are coarse and privacy-safe: session-cookie **existence** (never
+    the value) and committed **surface category** (never the URL).
+  - `ISessionCookieProbe` / `WebViewSessionCookieProbe` enumerate cookies for
+    the name `sessionid` only and must never read, log, or retain `.Value`.
+  - `AuthSessionWatcher` is single-flight with backoff; Stop is immediate.
+  - Process-failure budget lives in the state machine (max 3); clear-data is
+    the escape hatch from `FatalWebRuntimeFailure` and resets the budget.
+  - Host clear-data stops pollers before wiping the WebView profile.
+- **Privacy impact:** eliminates credential/cookie-value/URL leakage from the
+  auth path by construction; synthetic fakes keep tests account-free.
+- **Alternatives rejected:** redirect-URL heuristics; reading cookie values
+  “just for debugging”; parallel failure counters in the UI host.

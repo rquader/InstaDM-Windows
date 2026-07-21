@@ -1,3 +1,5 @@
+using InstaDM.App.Services;
+using InstaDM.Core.Authentication;
 using InstaDM.Core.Navigation;
 using InstaDM.Core.WebHost;
 using Microsoft.UI.Xaml;
@@ -22,6 +24,8 @@ public sealed partial class InstagramWebViewHost : UserControl
 {
     private readonly NavigationPolicy _policy = new();
     private readonly WebViewHostConfiguration _configuration;
+    private readonly AuthenticationStateMachine _auth = new();
+    private AuthSessionWatcher? _sessionWatcher;
     private bool _initialized;
 
     /// <summary>Raised with a schema-validated guard report. The recovery
@@ -107,9 +111,100 @@ public sealed partial class InstagramWebViewHost : UserControl
         core.DownloadStarting += OnDownloadStarting;
         core.ProcessFailed += OnProcessFailed;
         core.WebMessageReceived += OnWebMessageReceived;
+        core.NavigationCompleted += OnNavigationCompleted;
 
-        // 5. First navigation, only now.
+        // Authentication: cookie EXISTENCE + committed surface category are
+        // the only inputs; the pure state machine decides everything.
+        _sessionWatcher = new AuthSessionWatcher(
+            new WebViewSessionCookieProbe(core, DispatcherQueue));
+        Unloaded += OnUnloaded;
+
+        // 5. First navigation, only now. Assume absent until the probe
+        //    reports otherwise — the watcher corrects within one interval
+        //    and never reads cookie values (docs/SOURCE_BEHAVIOR.md B5).
         core.Navigate(NavigationPolicy.InboxUrl);
+        HandleAuthEvent(AuthenticationEvent.SessionCookieAbsent);
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        _sessionWatcher?.Stop();
+        _sessionWatcher?.Dispose();
+        _sessionWatcher = null;
+    }
+
+    // ------------------------------------------------------------------
+    // Authentication wiring
+    // ------------------------------------------------------------------
+
+    /// <summary>Feeds an event to the state machine and executes the single
+    /// action it returns. Always called on the dispatcher thread.</summary>
+    private void HandleAuthEvent(AuthenticationEvent evt)
+    {
+        var core = WebView.CoreWebView2;
+        if (core is null)
+        {
+            return;
+        }
+
+        switch (_auth.Handle(evt))
+        {
+            case AuthenticationStateMachine.Action.NavigateToInbox:
+                core.Navigate(NavigationPolicy.InboxUrl);
+                break;
+
+            case AuthenticationStateMachine.Action.StartCookieWatch:
+                _sessionWatcher?.Start(exists => DispatcherQueue.TryEnqueue(() =>
+                    HandleAuthEvent(exists
+                        ? AuthenticationEvent.SessionCookiePresent
+                        : AuthenticationEvent.SessionCookieAbsent)));
+                break;
+
+            case AuthenticationStateMachine.Action.StopCookieWatch:
+                _sessionWatcher?.Stop();
+                break;
+
+            case AuthenticationStateMachine.Action.ShowFatalError:
+                RuntimeFailureBar.Message =
+                    "The embedded browser keeps failing. Close and reopen the app.";
+                RuntimeFailureBar.IsOpen = true;
+                break;
+        }
+    }
+
+    /// <summary>Invariant: the state machine learns which surface CATEGORY
+    /// committed (auth / challenge / DM) — never the URL itself. Successful
+    /// completion while Recovering also closes the process-failure budget.</summary>
+    private void OnNavigationCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+    {
+        if (!args.IsSuccess)
+        {
+            return;
+        }
+
+        if (_auth.State == AuthenticationState.Recovering)
+        {
+            RuntimeFailureBar.IsOpen = false;
+            HandleAuthEvent(AuthenticationEvent.RecoveryNavigationSucceeded);
+            // Fall through: the same commit may also be a DM/auth surface.
+        }
+
+        switch (_policy.Classify(sender.Source))
+        {
+            case InstagramSurface.AuthAccount:
+            case InstagramSurface.AuthHost:
+                HandleAuthEvent(AuthenticationEvent.AuthSurfaceCommitted);
+                break;
+            case InstagramSurface.AuthChallenge:
+            case InstagramSurface.AuthPlatform:
+                HandleAuthEvent(AuthenticationEvent.ChallengeSurfaceCommitted);
+                break;
+            case InstagramSurface.DirectInbox:
+            case InstagramSurface.DirectThread:
+            case InstagramSurface.DirectNew:
+                HandleAuthEvent(AuthenticationEvent.DirectSurfaceCommitted);
+                break;
+        }
     }
 
     /// <summary>Invariant: no disallowed URL becomes the top-level document.
@@ -164,37 +259,15 @@ public sealed partial class InstagramWebViewHost : UserControl
         args.Handled = true;
     }
 
-    /// <summary>Invariant: a crashed renderer recovers to the inbox instead
-    /// of leaving a dead pane; repeated process failure surfaces an honest
-    /// error instead of a reload loop. Counter resets on the next successful
-    /// recovery navigation (wired below in <see cref="OnRecoveryCompleted"/>).</summary>
-    private int _processFailures;
-
+    /// <summary>Invariant: a crashed renderer recovers through the auth
+    /// state machine (capped retries, then fatal). No parallel failure
+    /// counter — the machine owns the budget.</summary>
     private void OnProcessFailed(CoreWebView2 sender, CoreWebView2ProcessFailedEventArgs args)
     {
-        _processFailures++;
-        if (_processFailures <= 3)
-        {
-            RuntimeFailureBar.IsOpen = true;
-            sender.NavigationCompleted += OnRecoveryCompleted;
-            sender.Navigate(NavigationPolicy.InboxUrl);
-        }
-        else
-        {
-            RuntimeFailureBar.Message =
-                "The embedded browser keeps failing. Close and reopen the app.";
-            RuntimeFailureBar.IsOpen = true;
-        }
-    }
-
-    private void OnRecoveryCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
-    {
-        sender.NavigationCompleted -= OnRecoveryCompleted;
-        if (args.IsSuccess)
-        {
-            _processFailures = 0;
-            RuntimeFailureBar.IsOpen = false;
-        }
+        _sessionWatcher?.Stop();
+        RuntimeFailureBar.IsOpen = true;
+        RuntimeFailureBar.Message = "Reloading the messaging view…";
+        HandleAuthEvent(AuthenticationEvent.WebProcessFailed);
     }
 
     /// <summary>Invariant: web messages are untrusted; only exact-schema
@@ -209,7 +282,8 @@ public sealed partial class InstagramWebViewHost : UserControl
 
     /// <summary>Clears all Instagram data in the dedicated profile: cookies,
     /// cache, storage, everything. Used by the sign-out flow (M9) and never
-    /// touches any other browser or system profile.</summary>
+    /// touches any other browser or system profile. Stops pollers first so a
+    /// mid-clear cookie observation cannot race the state machine.</summary>
     public async Task ClearInstagramDataAsync()
     {
         var core = WebView.CoreWebView2;
@@ -218,7 +292,9 @@ public sealed partial class InstagramWebViewHost : UserControl
             return;
         }
 
+        _sessionWatcher?.Stop();
         await core.Profile.ClearBrowsingDataAsync();
+        HandleAuthEvent(AuthenticationEvent.DataCleared);
         core.Navigate(NavigationPolicy.InboxUrl); // Instagram will show login
     }
 }
