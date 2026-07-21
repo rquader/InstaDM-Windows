@@ -32,8 +32,10 @@ Windows.
 # Any host: core logic + tests
 dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj
 
-# Windows: full solution
-dotnet build InstaDM.Windows.slnx -c Release /p:Platform=x64
+# Windows: full app (x64). Core/Tests use AnyCPU; do not pass Platform=x64
+# to the .slnx — it has no Release|x64 mapping.
+dotnet build src/InstaDM.App/InstaDM.App.csproj -c Release -p:Platform=x64
+dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj -c Release
 ```
 
 CI (`.github/workflows/windows-ci.yml`) restores, builds, and tests on

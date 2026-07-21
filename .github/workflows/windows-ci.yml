@@ -27,14 +27,24 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Restore projects individually: the .slnx has no Release|x64 map, and
+      # InstaDM.App is x64/ARM64 while Core/Tests are AnyCPU.
       - name: Restore
-        run: dotnet restore InstaDM.Windows.slnx
+        run: |
+          dotnet restore src/InstaDM.Core/InstaDM.Core.csproj
+          dotnet restore tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj
+          dotnet restore src/InstaDM.App/InstaDM.App.csproj
 
-      - name: Build (Release)
-        run: dotnet build InstaDM.Windows.slnx --configuration Release --no-restore /p:Platform=x64
+      - name: Build Core + Tests (Release)
+        run: |
+          dotnet build src/InstaDM.Core/InstaDM.Core.csproj --configuration Release --no-restore
+          dotnet build tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj --configuration Release --no-restore
+
+      - name: Build App (Release x64)
+        run: dotnet build src/InstaDM.App/InstaDM.App.csproj --configuration Release --no-restore -p:Platform=x64
 
       - name: Test (synthetic fixtures only)
-        run: dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj --configuration Release --no-restore
+        run: dotnet test tests/InstaDM.Core.Tests/InstaDM.Core.Tests.csproj --configuration Release --no-restore --no-build
 
       # Containment-guard tests run against a fake window in Node's built-in
       # test runner — no browser, no network, no account. Node ships on
